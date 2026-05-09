@@ -15,6 +15,10 @@ def filelist():
     itemlist = gdrive.getFileList();
     return jsonify({"fileliest": itemlist})
 
+@app.route('/viewfile/<fileid>', methods=['GET'])
+def viewfile(fileid):
+  return gdrive.getFile(fileid)
+
 if __name__ == '__main__':
   app.run()
         
