@@ -8,12 +8,12 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from google.auth.transport.requests import Request
-from googleapiclient.http import MediaIoBaseDownload
-from flask import send_file
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from flask import send_file, jsonify
 from io import BytesIO
 
 
-SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly","https://www.googleapis.com/auth/drive.file"]
 
 
 def getGDriveAuthServ():
@@ -90,6 +90,63 @@ def getFile(file_id):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
+def uploadfile(request):
+    try:
+
+        file = request.files["file"]
+
+        local_folder = "media"
+
+        filepath = os.path.join(local_folder, file.filename)
+
+        os.makedirs(local_folder, exist_ok=True)
+
+        service = getGDriveAuthServ()
+
+        file.save(filepath)
+
+        file_metadata = {
+            "name":file.filename,
+            "parents":["1TzuleiJgsn2ZEHCT77NBG7JiY2ZX5_16"]
+        }
+
+        media = MediaFileUpload(filepath, mimetype="application/octet-stream")
+
+        file = (
+			service.files()
+			.create(body=file_metadata, media_body=media, fields="id")
+			.execute()
+		)
+
+        media.stream().close()
+
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+        return f"Uploaded! File ID: {file['id']}"	
+
+    except HttpError as error:
+        return jsonify({"Result":f"An error occurred: {error}"})
+
+
+def deletefile(file_id):
+    try:
+
+        service = getGDriveAuthServ()
+
+        file_metadata = {'trashed': True }
+
+        #soft deletion, will move your file from folder to trash bin
+        #service.files().update(fileId=file_id, body=file_metadata).execute()
+
+        #hard deletion, you wont be able to restore your file.
+        service.files().delete(fileId=file_id).execute()
+
+        return {"status": "success", "message": "File deleted"}
+
+    except Exception as e:
+        return {"status": "Error", "message": str(e) }
 
 
 # getFileList()
